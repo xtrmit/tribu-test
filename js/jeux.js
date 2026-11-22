@@ -30,11 +30,12 @@
     return norm(rep).indexOf(norm(m)) >= 0 || brut(rep).indexOf(k) >= 0;
   });
 
-  let qdj = [], dev = [], joueurs = [], j = jour(), editQ = false;
+  let qdj = [], dev = [], joueurs = [], j = jour(), editQ = false, devTous = [], msgs = [];
 
   async function load() {
     j = jour();
-    const [a, b, p] = await Promise.all([Sync.all('qdj'), Sync.all('devinette'), Sync.all('presence')]);
+    const [a, b, p, ms] = await Promise.all([Sync.all('qdj'), Sync.all('devinette'), Sync.all('presence'), Sync.all('msg')]);
+    devTous = b; msgs = ms;
     qdj = a.filter(x => x.data && x.data.d === j);
     dev = b.filter(x => x.data && x.data.d === j);
     const set = {}; p.forEach(x => { if (MEMBRES[x.auteur]) set[x.auteur] = 1; });
@@ -106,7 +107,35 @@
     if (foc && $('devInput')) $('devInput').focus();
   }
 
-  async function refresh() { if (!me()) return; await load(); render(); }
+  async function refresh() { if (!me()) return; await load(); render(); bilans(); }
+
+  // Résultat de la devinette dans le chat (v0.16.3) : publié une seule fois par le premier téléphone qui voit la révélation,
+  // ou le lendemain par le premier qui ouvre Tribu, pour garder une trace de qui a répondu quoi.
+  const veille = s => { const p = s.split('-').map(Number); const d = new Date(p[0], p[1] - 1, p[2] - 1); return jour(d); };
+  const liste = t => t.length > 1 ? t.slice(0, -1).join(', ') + ' et ' + t[t.length - 1] : t[0];
+  function bilan(date, rows, rev) {
+    if (!rev || !rows.length || !me()) return;
+    const ri = rows.find(x => x.data && D[x.data.i]); const d = D[ri ? ri.data.i : idxD(date)]; if (!d) return;
+    if (msgs.some(m => m.data && m.data.dev === date)) return;
+    const cle = 'devBilan_' + date;
+    try { if (localStorage.getItem(cle)) return; localStorage.setItem(cle, '1'); } catch (e) {}
+    const ont = ORDRE.filter(id => rows.some(x => auteurDe(x) === id));
+    const gagnants = [], parts = ont.map(id => {
+      const r = rows.find(x => auteurDe(x) === id), ok = bonne(r.data.r, d[2]); if (ok) gagnants.push(nom(id));
+      return (ok ? '✓ ' : '✗ ') + nom(id) + ' : « ' + String(r.data.r).slice(0, 60) + ' »';
+    });
+    const absents = (date === j ? joueurs : ORDRE).filter(id => ont.indexOf(id) < 0 && MEMBRES[id]).map(nom);
+    const p = date.split('-');
+    const t = [`🧩 Devinette du ${p[2]}/${p[1]}`, d[0], 'Réponse : ' + d[1]].concat(parts)
+      .concat(absents.length ? [`${liste(absents)} ${absents.length > 1 ? 'n\'ont' : 'n\'a'} pas joué`] : [])
+      .concat([gagnants.length ? 'Bravo à ' + liste(gagnants) + ' !' : 'Personne n\'a trouvé.']).join('\n');
+    Sync.put('msg', 'msg:' + me() + ':dev' + date.replace(/-/g, ''), { t, at: Date.now(), sys: 'jeu', dev: date });
+  }
+  function bilans() {
+    const h = veille(j);
+    bilan(h, devTous.filter(x => x.data && x.data.d === h), true);
+    bilan(j, dev, reveleeD());
+  }
 
   function repondreQ(e) {
     e = String(e || '').trim(); if (!e) return;

@@ -72,10 +72,12 @@
     const evoVus = {};
     for (const it of items) {
       if (it.type === 'msg' && it.e.data.evo) { if (evoVus[it.e.data.evo]) continue; evoVus[it.e.data.evo] = 1; } // évolution du dragon : une seule annonce
+      if (it.type === 'msg' && it.e.data.dev) { if (evoVus['dev' + it.e.data.dev]) continue; evoVus['dev' + it.e.data.dev] = 1; } // résultat de la devinette : une seule fois
       const dl = dayLabel(it.t);
       if (dl !== lastDay) { html += `<div class="day">${dl}</div>`; lastDay = dl; lastAuthor = ''; }
       if (it.type === 'poll') { html += pollHtml(it.e); lastAuthor = ''; continue; }
       const m = it.e, mine = m.auteur === me(), a = memb(m.auteur);
+      if (m.data.dev) { html += `<div class="sysmsg dev m-${esc(m.auteur)}">${esc(m.data.t)}<span class="muted">${hhmm(it.t)}</span></div>`; lastAuthor = ''; continue; }
       if (m.data.sys === 'jeu' || m.data.sys === 'bip') { html += `<div class="sysmsg m-${esc(m.auteur)}">${esc(m.data.t)} · ${hhmm(it.t)}</div>`; lastAuthor = ''; continue; }
       if (m.data.sys) { html += `<div class="sysmsg m-${esc(m.auteur)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>${esc(m.data.t)} · ${hhmm(it.t)}</div>`; lastAuthor = ''; continue; }
       const grouped = m.auteur === lastAuthor && it.t - lastT < 5 * 60 * 1000;
