@@ -13,6 +13,9 @@
   const idxQ = j => Q.length ? (numJour(j) * 7 + 3) % Q.length : 0;
   const idxD = j => D.length ? (numJour(j) * 11 + 5) % D.length : 0;
   const HEURE_REVELATION = 20;
+  // Le jour où la liste change (mise à jour de l'appli), on garde la question déjà jouée par la tribu.
+  const curQ = () => { const r = qdj.find(x => x.data && Q[x.data.i]); return r ? r.data.i : idxQ(j); };
+  const curD = () => { const r = dev.find(x => x.data && D[x.data.i]); return r ? r.data.i : idxD(j); };
 
   // Comparaison tolérante : minuscules, sans accents ni ponctuation, pluriels simplifiés, articles ignorés
   const VIDES = ['le', 'la', 'les', 'l', 'un', 'une', 'des', 'du', 'de', 'd', 'c', 'est', 'ce', 'ton', 'ta', 'tes', 'mon', 'ma', 'mes', 'c\'est'];
@@ -43,7 +46,7 @@
   const reveleeD = () => new Date().getHours() >= HEURE_REVELATION || (joueurs.length > 0 && joueurs.every(id => dev.some(x => auteurDe(x) === id)));
 
   function renderQ() {
-    const q = Q[idxQ(j)]; if (!q) return '';
+    const q = Q[curQ()]; if (!q) return '';
     const mien = qdj.find(x => auteurDe(x) === me());
     const choix = !mien || editQ;
     const reps = ORDRE.map(id => {
@@ -61,7 +64,7 @@
   }
 
   function renderD() {
-    const d = D[idxD(j)]; if (!d) return '';
+    const d = D[curD()]; if (!d) return '';
     const mien = dev.find(x => auteurDe(x) === me());
     const rev = reveleeD();
     let corps;
@@ -108,12 +111,12 @@
   function repondreQ(e) {
     e = String(e || '').trim(); if (!e) return;
     editQ = false;
-    Sync.put('qdj', 'qdj:' + j + '|' + me(), { d: j, i: idxQ(j), e: e.slice(0, 16) }); vib(8);
+    Sync.put('qdj', 'qdj:' + j + '|' + me(), { d: j, i: curQ(), e: e.slice(0, 16) }); vib(8);
   }
   function repondreD() {
     const v = ($('devInput') && $('devInput').value || '').trim(); if (!v) return;
     if (reveleeD()) { toast('Trop tard, la réponse est déjà dévoilée'); return; }
-    Sync.put('devinette', 'devinette:' + j + '|' + me(), { d: j, i: idxD(j), r: v.slice(0, 60) }); vib(8);
+    Sync.put('devinette', 'devinette:' + j + '|' + me(), { d: j, i: curD(), r: v.slice(0, 60) }); vib(8);
   }
 
   function choisirAutre() {
