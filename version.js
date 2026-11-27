@@ -1,1 +1,1 @@
-self.TRIBU_VERSION = '0.16.3';
+self.TRIBU_VERSION = '0.16.4';

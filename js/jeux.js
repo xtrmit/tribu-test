@@ -24,7 +24,29 @@
   const sing = w => w.length > 3 ? w.replace(/[sx]$/, '') : w;
   const norm = s => ' ' + mots(s).filter(w => VIDES.indexOf(w) < 0).map(sing).join(' ') + ' ';
   const brut = s => ' ' + mots(s).map(sing).join(' ') + ' ';
-  const bonne = (rep, liste) => liste.some(m => {
+  // Tolérance aux fautes d'orthographe (v0.16.4) : 1 lettre fausse, en trop, en moins ou inversée dès 5 lettres, 2 dès 9 lettres
+  // (« artichaud » pour « artichaut »). Les mots courts doivent être exacts.
+  const dist = (a, b) => {
+    const d = []; for (let i = 0; i <= a.length; i++) { d[i] = [i]; } for (let k = 0; k <= b.length; k++) d[0][k] = k;
+    for (let i = 1; i <= a.length; i++) for (let k = 1; k <= b.length; k++) {
+      d[i][k] = Math.min(d[i - 1][k] + 1, d[i][k - 1] + 1, d[i - 1][k - 1] + (a[i - 1] === b[k - 1] ? 0 : 1));
+      if (i > 1 && k > 1 && a[i - 1] === b[k - 2] && a[i - 2] === b[k - 1]) d[i][k] = Math.min(d[i][k], d[i - 2][k - 2] + 1);
+    }
+    return d[a.length][b.length];
+  };
+  const proche = (a, b) => {
+    if (a === b) return true;
+    if (Math.min(a.length, b.length) < 5) return false;
+    const max = Math.max(a.length, b.length) >= 9 ? 2 : 1;
+    return Math.abs(a.length - b.length) <= max && dist(a, b) <= max;
+  };
+  const utiles = s => mots(s).filter(w => VIDES.indexOf(w) < 0).map(sing);
+  const approchant = (rep, m) => {
+    const R = utiles(rep), M = utiles(m); if (!M.length) return false;
+    for (let i = 0; i + M.length <= R.length; i++) if (M.every((w, k) => proche(R[i + k], w))) return true;
+    return false;
+  };
+  const bonne = (rep, liste) => liste.some(m => approchant(rep, m)) || liste.some(m => {
     const k = brut(m);
     if (mots(m).every(w => VIDES.indexOf(w) >= 0)) return mots(rep).length <= 3 && brut(rep).indexOf(k) >= 0; // « dé », « une »…
     return norm(rep).indexOf(norm(m)) >= 0 || brut(rep).indexOf(k) >= 0;
